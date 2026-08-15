@@ -31,6 +31,7 @@ return {
 
     // ============================================================ 识别引擎（Web Speech API）
     let rec = null;
+    let recSeq = 0;             // 识别实例序号：重启后旧实例的迟到事件一律作废（防“上一句串进下一句”）
     let userStopped = false;
     let autoRestartUsed = false;
     let noSpeechRetry = false;
@@ -87,10 +88,13 @@ return {
     function buildRec() {
       const SR = getSR();
       const r = new SR();
+      const myId = ++recSeq;      // 本实例的身份；一旦重启，旧实例即失效
+      const isStale = () => myId !== recSeq;
       r.lang = store.config.language;
       r.continuous = true;        // 连续听写，支持长段口述
       r.interimResults = true;    // 实时中间结果
       r.onresult = (event) => {
+        if (isStale()) return;    // 旧实例的迟到结果不再提交
         let interim = '';
         let finals = '';
         for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -103,8 +107,9 @@ return {
         store.interim = interim;
         emit();
       };
-      r.onerror = (e) => handleRecError(e.error);
+      r.onerror = (e) => { if (!isStale()) handleRecError(e.error); };
       r.onend = () => {
+        if (isStale()) return;    // 旧实例的 onend 不触发重启/报错
         rec = null;
         if (!userStopped && store.status === 'listening') {
           // 识别器意外结束：按配置自动重启一次
@@ -121,6 +126,11 @@ return {
 
     function restartRec() {
       if (store.status !== 'listening') return;
+      // 先彻底停掉旧实例（abort 立即终止，不触发收尾回放），防止两个识别器并存导致文字重复/重叠
+      if (rec) {
+        try { rec.onend = null; rec.onerror = null; rec.abort(); } catch (e) { /* ignore */ }
+        rec = null;
+      }
       try {
         const r = buildRec();
         rec = r;
@@ -251,7 +261,13 @@ return {
       React.useEffect(() => {
         if (!actions) return undefined;
         store.appendText = (text) => {
-          try { actions.setDraft((draftRef.current || '') + text); } catch (e) { /* ignore */ }
+          try {
+            // 同步预更新 draftRef：同一 tick 内多次追加基于“已写入的最新内容”继续拼接，
+            // 避免等 React 重渲染的旧快照导致互相覆盖或重复
+            const next = (draftRef.current || '') + text;
+            draftRef.current = next;
+            actions.setDraft(next);
+          } catch (e) { /* ignore */ }
         };
         store.submitNow = () => {
           try { actions.submit(); } catch (e) { /* ignore */ }
