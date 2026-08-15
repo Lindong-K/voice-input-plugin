@@ -255,8 +255,10 @@ return {
     function MicButton(props) {
       const s = useStore();
       const actions = props.inputActions;
-      const draftRef = React.useRef((props.input && props.input.draft) || '');
-      draftRef.current = (props.input && props.input.draft) || draftRef.current;
+      const draftRef = React.useRef((props.input && props.input.draft !== undefined) ? props.input.draft : '');
+      // 同步输入框最新草稿到内部引用（显式判断 undefined：空字符串 "" 也是合法草稿，
+      // 用 || 会把清空的输入框误当成旧内容，导致“删掉的话又回来了”）
+      if (props.input && props.input.draft !== undefined) draftRef.current = props.input.draft;
 
       React.useEffect(() => {
         if (!actions) return undefined;
