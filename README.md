@@ -19,6 +19,12 @@ Whisper endpoint).
   kept, fully editable, input refocused). No auto-send unless you enable it.
 - **Continuous dictation** (Web Speech API `continuous` + `interimResults`) — long monologues keep
   committing sentence by sentence, no 60s limit.
+- **Cancel anytime** (web-native, benchmarked against WeChat): while listening, a **「✕ 取消」
+  button** appears in the preview strip and **Esc** discards the current session — including an
+  automatic **rollback** of the text this session already appended.
+- **Smart punctuation**: questions end with「？」, exclamations with「！」, otherwise「。」.
+- Optional **hold-to-talk** mode (touch/trackpad style: press and hold to record, release to
+  commit, slide up to cancel) — default stays click-to-toggle for desktop.
 - Full error handling: permission denied → guidance; no-speech → one auto retry; service
   unavailable; no microphone; unexpected end → one auto-restart.
 - Survives re-renders / session switches; unloading removes the button, stops recognition and
@@ -31,8 +37,9 @@ Whisper endpoint).
 | Option | Default | Meaning |
 |---|---|---|
 | `language` | `zh-CN` | recognition language (`en-US`, `yue-Hant-HK`, …) |
+| `inputMode` | `toggle` | `toggle` = click to start/stop (desktop default); `hold` = hold-to-talk (touch/trackpad) |
 | `autoSend` | `false` | send automatically after listening stops (default off: review first) |
-| `punctuation` | `true` | append Chinese sentence punctuation (`。！？`) |
+| `punctuation` | `true` | smart punctuation: `？` for questions, `！` for exclamations, else `。` |
 | `autoRestart` | `true` | restart once when recognition ends unexpectedly |
 | `whisperEndpoint` | *(empty)* | leave empty = browser built-in recognition (no audio leaves the browser); fill to enable local Whisper upload |
 
